@@ -2,7 +2,6 @@
 
 # Importing the libraries
 import numpy as np
-import matplotlib.pyplot as plt
 import pandas as pd
 from keras.utils import np_utils
 import keras
@@ -13,16 +12,21 @@ import re
 import nltk
 from sklearn.metrics import confusion_matrix
 from keras.models import load_model
-
-
-# Importing the dataset
-dataset = pd.read_csv('Labelled_Data.txt', delimiter = ',,,', quoting = 3, header=None)
-dataset.columns = ['Question', 'Category']
-# Cleaning the texts
-
+from sklearn.preprocessing import LabelEncoder, OneHotEncoder
+from nltk.stem.porter import PorterStemmer
 #nltk.download('stopwords')
 #from nltk.corpus import stopwords
-from nltk.stem.porter import PorterStemmer
+
+
+
+""" Importing the dataset """
+
+dataset = pd.read_csv('LabelledData.txt', delimiter = ',,,', quoting = 3, header=None)
+dataset.columns = ['Question', 'Category']
+
+""" Cleaning the texts"""
+
+
 corpus = []
 
 for i in range(0, len(dataset)):
@@ -34,23 +38,21 @@ for i in range(0, len(dataset)):
     review = ' '.join(review)
     corpus.append(review)
 
-# Creating the Bag of Words model    
+"""Creating the Bag of Words model """    
 from sklearn.feature_extraction.text import CountVectorizer
 cv = CountVectorizer(max_features = 100)
 X = cv.fit_transform(corpus).toarray()
 
-
-
-# Encoding categorical data
-from sklearn.preprocessing import LabelEncoder, OneHotEncoder
+""" Creating the dependent variable """
 y= dataset.iloc[:, 1].values
 
-
-# Splitting the dataset into the Training set and Test set
+""" Splitting the dataset into the Training set and Test set """
 from sklearn.cross_validation import train_test_split
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.20, random_state = 0)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.10, random_state = 0)
 
 
+
+""" Encoding categorical data """
 labelencoder_y = LabelEncoder()
 y_train= labelencoder_y.fit_transform(y_train)
 onehotencoder = OneHotEncoder()
@@ -59,52 +61,64 @@ y_train= onehotencoder.fit_transform(y_train).toarray()
 
 
 
-
-# Fitting Naive Bayes to the Training set
-#from sklearn.naive_bayes import GaussianNB
-#classifier = GaussianNB()
-#classifier.fit(X_train, y_train)
-
-
-classifier = Sequential()
-
-# Adding the input layer and the first hidden layer
-classifier.add(Dense(units = 64, kernel_initializer = 'uniform', activation = 'relu', input_dim = 100))
-classifier.add(Dropout(p = 0.3))
+"""Loading the ANN model"""
+try:
+    classifier = load_model('my_model.h5')
+except(FileNotFoundError, IOError):
+    print("############################################### Model file could not be found ###########################################")
+    print("")
+    print("################################################# Creating the Model ####################################################")
 
 
-# Adding the second hidden layer
-classifier.add(Dense(units = 64, kernel_initializer = 'uniform', activation = 'relu'))
-classifier.add(Dropout(p = 0.3))
-
-
-# Adding the output layer
-classifier.add(Dense(units = 5, kernel_initializer = 'uniform', activation = 'softmax'))
-
-# Compiling the ANN
-classifier.compile(optimizer = 'adam', loss = 'binary_crossentropy', metrics = ['accuracy'])
-
-# Fitting the ANN to the Training set
-classifier.fit(X_train, y_train, batch_size = 5, epochs = 100)
-
-#Saving the trained model
-classifier.save('my_model.h5')  # creates a HDF5 file 'my_model.h5'
+    """ Making the classifier """
+    
+    # Fitting Naive Bayes to the Training set
+    #from sklearn.naive_bayes import GaussianNB
+    #classifier = GaussianNB()
+    #classifier.fit(X_train, y_train)
+    
+    """Making the ANN classifier"""
+    
+    
+    classifier = Sequential()
+    
+    """ Adding the input layer and the first hidden layer """
+    classifier.add(Dense(units = 64, kernel_initializer = 'uniform', activation = 'relu', input_dim = 100))
+    classifier.add(Dropout(p = 0.3))
+    
+    
+    """ Adding the second hidden layer """
+    classifier.add(Dense(units = 64, kernel_initializer = 'uniform', activation = 'relu'))
+    classifier.add(Dropout(p = 0.3))
+    
+    
+    """ Adding the output layer """
+    classifier.add(Dense(units = 5, kernel_initializer = 'uniform', activation = 'softmax'))
+    
+    """ Compiling the ANN """
+    classifier.compile(optimizer = 'adam', loss = 'binary_crossentropy', metrics = ['accuracy'])
+    
+    """ Fitting the ANN to the Training set """
+    classifier.fit(X_train, y_train, batch_size = 5, epochs = 100)
+    
+    """Saving the trained model """
+    classifier.save('my_model.h5')  # creates a HDF5 file 'my_model.h5'
 
 
 # returns a compiled model
 # identical to the previous one
-model = load_model('my_model.h5')
+# model = load_model('my_model.h5')
 
 
-# Predicting the Test set results
-y_pred = model.predict(X_test)
+""" Predicting the Test set results """
+y_pred = classifier.predict(X_test)
 from numpy import argmax
 inverted=[]
 for i in range(0,len(y_pred)):
     inverted.append(labelencoder_y.inverse_transform([argmax(y_pred[i])])[0])
 
 
-# Making the Confusion Matrix
+""" Making the Confusion Matrix """
 
 cm = confusion_matrix(y_test,inverted)
 #classifier.predict(cv.transform(corpus).toarray()
